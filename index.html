@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Interactive Job Network Visualization</title>
     <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script> 
+    <script src="https://cdn.tailwindcss.com"></script>
     <!-- React and ReactDOM -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -36,6 +36,20 @@
         .node-label {
             font-size: 8px;
             pointer-events: none;
+        }
+        /* Scrollable container for job details */
+        .details-container {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        /* Tag style for attributes */
+        .attribute-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            margin: 2px;
+            border-radius: 12px;
+            font-size: 12px;
+            white-space: nowrap;
         }
     </style>
 </head>
@@ -86,6 +100,14 @@
                 education: true
             });
             const [selectedJobDetails, setSelectedJobDetails] = React.useState(null);
+            const [expandedSections, setExpandedSections] = React.useState({
+                workMode: true,
+                salary: true,
+                strengths: true,
+                interests: true,
+                education: true,
+                sourceLinks: true
+            });
             const [loading, setLoading] = React.useState(true);
             const [error, setError] = React.useState(null);
             
@@ -216,7 +238,39 @@
             // Retrieve job details
             const getJobDetails = (jobId) => {
                 if (!data) return null;
-                return data.find(item => item["Job Opportunity"] === jobId);
+                
+                // Find all entries for this job
+                const jobEntries = data.filter(item => item["Job Opportunity"] === jobId);
+                
+                if (jobEntries.length === 0) return null;
+                
+                // Extract unique values for each attribute
+                const workModes = [...new Set(jobEntries.map(item => item["Work Mode"]))];
+                const salaryRanges = [...new Set(jobEntries.map(item => item["Salary Range"]))];
+                const strengths = [...new Set(jobEntries.map(item => item["Strength"]))];
+                const interests = [...new Set(jobEntries.map(item => item["Interest/Hobby"]))];
+                const education = [...new Set(jobEntries.map(item => item["Educational Background"]))];
+                const sourceLinks = [...new Set(jobEntries.map(item => item["Source Link"]))];
+                const industries = [...new Set(jobEntries.map(item => item["Industry"]))];
+                
+                return {
+                    jobTitle: jobId,
+                    workModes,
+                    salaryRanges,
+                    strengths,
+                    interests,
+                    education,
+                    sourceLinks,
+                    industries
+                };
+            };
+            
+            // Toggle section expansion
+            const toggleSection = (section) => {
+                setExpandedSections(prev => ({
+                    ...prev,
+                    [section]: !prev[section]
+                }));
             };
             
             // Handle node click
@@ -365,6 +419,42 @@
                 };
             }, [nodes, links, selectedCategories, loading]);
             
+            // Section Header Component with toggle functionality
+            const SectionHeader = ({ title, section, expandedSections, toggleSection }) => (
+                <div 
+                    className="flex items-center justify-between cursor-pointer p-2 bg-gray-100 rounded mb-2"
+                    onClick={() => toggleSection(section)}
+                >
+                    <h3 className="font-semibold">{title}</h3>
+                    <span>{expandedSections[section] ? '▼' : '►'}</span>
+                </div>
+            );
+            
+            // AttributeList Component for displaying lists of attributes with color coding
+            const AttributeList = ({ items, color, expanded }) => {
+                if (!expanded) return null;
+                
+                return (
+                    <div className="mb-3">
+                        {items.length > 0 ? (
+                            <div className="flex flex-wrap">
+                                {items.map((item, index) => (
+                                    <span 
+                                        key={index} 
+                                        className="attribute-tag" 
+                                        style={{ backgroundColor: `${color}20`, color: color, border: `1px solid ${color}` }}
+                                    >
+                                        {item}
+                                    </span>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-gray-500">No data available</p>
+                        )}
+                    </div>
+                );
+            };
+            
             // Show loading indicator
             if (loading) {
                 return <div className="w-full h-full flex items-center justify-center">Loading data...</div>;
@@ -443,29 +533,134 @@
                             <svg ref={svgRef} width="100%" height="100%"></svg>
                         </div>
                         
-                        {/* Job details panel */}
-                        <div className="w-64 border rounded-lg p-4 bg-white">
+                        {/* Enhanced Job details panel */}
+                        <div className="w-80 border rounded-lg p-4 bg-white overflow-hidden">
                             <h2 className="text-lg font-bold mb-4">Job Details</h2>
                             
                             {selectedJobDetails ? (
-                                <div>
-                                    <h3 className="font-bold text-red-500">{selectedJobDetails["Job Opportunity"]}</h3>
-                                    <div className="mt-2">
-                                        <p><strong>Industry:</strong> {selectedJobDetails["Industry"]}</p>
-                                        <p><strong>Salary Range:</strong> {selectedJobDetails["Salary Range"]}</p>
-                                        <p><strong>Work Mode:</strong> {selectedJobDetails["Work Mode"]}</p>
-                                       
-                                         
-                                        <p className="mt-2">
-                                            <a 
-                                                href={selectedJobDetails["Source Link"]} 
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="text-blue-500 hover:underline"
-                                            >
-                                                View Job Listing
-                                            </a>
-                                        </p>
+                                <div className="details-container">
+                                    <h3 className="font-bold text-red-500 text-xl mb-3">{selectedJobDetails.jobTitle}</h3>
+                                    
+                                    {/* Industry Section */}
+                                    <div className="mb-4">
+                                        <SectionHeader 
+                                            title="Industry" 
+                                            section="industry" 
+                                            expandedSections={expandedSections} 
+                                            toggleSection={toggleSection} 
+                                        />
+                                        {expandedSections.industry && (
+                                            <AttributeList 
+                                                items={selectedJobDetails.industries} 
+                                                color="#9C27B0" 
+                                                expanded={true} 
+                                            />
+                                        )}
+                                    </div>
+                                    
+                                    {/* Work Mode Section */}
+                                    <div className="mb-4">
+                                        <SectionHeader 
+                                            title="Work Modes" 
+                                            section="workMode" 
+                                            expandedSections={expandedSections} 
+                                            toggleSection={toggleSection} 
+                                        />
+                                        {expandedSections.workMode && (
+                                            <AttributeList 
+                                                items={selectedJobDetails.workModes} 
+                                                color="#607D8B" 
+                                                expanded={true} 
+                                            />
+                                        )}
+                                    </div>
+                                    
+                                    {/* Salary Range Section */}
+                                    <div className="mb-4">
+                                        <SectionHeader 
+                                            title="Salary Ranges" 
+                                            section="salary" 
+                                            expandedSections={expandedSections} 
+                                            toggleSection={toggleSection} 
+                                        />
+                                        {expandedSections.salary && (
+                                            <AttributeList 
+                                                items={selectedJobDetails.salaryRanges} 
+                                                color="#FF9800" 
+                                                expanded={true} 
+                                            />
+                                        )}
+                                    </div>
+                                    
+                                    {/* Strengths Section */}
+                                    <div className="mb-4">
+                                        <SectionHeader 
+                                            title="Required Strengths" 
+                                            section="strengths" 
+                                            expandedSections={expandedSections} 
+                                            toggleSection={toggleSection} 
+                                        />
+                                        <AttributeList 
+                                            items={selectedJobDetails.strengths} 
+                                            color="#4CAF50" 
+                                            expanded={expandedSections.strengths} 
+                                        />
+                                    </div>
+                                    
+                                    {/* Interests Section */}
+                                    <div className="mb-4">
+                                        <SectionHeader 
+                                            title="Related Interests/Hobbies" 
+                                            section="interests" 
+                                            expandedSections={expandedSections} 
+                                            toggleSection={toggleSection} 
+                                        />
+                                        <AttributeList 
+                                            items={selectedJobDetails.interests} 
+                                            color="#2196F3" 
+                                            expanded={expandedSections.interests} 
+                                        />
+                                    </div>
+                                    
+                                    {/* Education Section */}
+                                    <div className="mb-4">
+                                        <SectionHeader 
+                                            title="Educational Background" 
+                                            section="education" 
+                                            expandedSections={expandedSections} 
+                                            toggleSection={toggleSection} 
+                                        />
+                                        <AttributeList 
+                                            items={selectedJobDetails.education} 
+                                            color="#FFC107" 
+                                            expanded={expandedSections.education} 
+                                        />
+                                    </div>
+                                    
+                                    {/* Source Links Section */}
+                                    <div className="mb-4">
+                                        <SectionHeader 
+                                            title="Source Links" 
+                                            section="sourceLinks" 
+                                            expandedSections={expandedSections} 
+                                            toggleSection={toggleSection} 
+                                        />
+                                        {expandedSections.sourceLinks && (
+                                            <div className="pl-2">
+                                                {selectedJobDetails.sourceLinks.map((link, index) => (
+                                                    <div key={index} className="mb-1">
+                                                        <a 
+                                                            href={link} 
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="text-blue-500 hover:underline"
+                                                        >
+                                                            Source {index + 1}
+                                                        </a>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             ) : (
@@ -480,6 +675,7 @@
                             <li>Select categories using checkboxes above</li>
                             <li>Drag nodes to reposition</li>
                             <li>Click on a job node (red) to view details</li>
+                            <li>Click section headers in job details to expand/collapse</li>
                             <li>Scroll to zoom in/out</li>
                         </ul>
                     </div>
