@@ -91,6 +91,41 @@
             background-color: white;
             border: 1px solid #e5e7eb;
         }
+        /* Search dropdown styling */
+        .search-container {
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+        }
+        .search-dropdown {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            background-color: white;
+            font-size: 16px;
+            cursor: pointer;
+            appearance: none;
+        }
+        .search-dropdown:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+        }
+        .clear-search {
+            position: absolute;
+            right: 30px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: #6b7280;
+            font-size: 14px;
+            font-weight: bold;
+            padding: 0 5px;
+        }
+        .clear-search:hover {
+            color: #ef4444;
+        }
     </style>
 </head>
 <body>
@@ -153,6 +188,8 @@
             const [loading, setLoading] = React.useState(true);
             const [error, setError] = React.useState(null);
             const [detailsPanelOpen, setDetailsPanelOpen] = React.useState(false);
+            const [uniqueJobs, setUniqueJobs] = React.useState([]);
+            const [searchSelectedJob, setSearchSelectedJob] = React.useState('');
             
             // Refs
             const svgRef = React.useRef(null);
@@ -173,6 +210,10 @@
                         const firstSheetName = workbook.SheetNames[0];
                         const worksheet = workbook.Sheets[firstSheetName];
                         const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                        
+                        // Extract unique job opportunities for search dropdown
+                        const jobs = [...new Set(jsonData.map(item => item["Job Opportunity"]))].sort();
+                        setUniqueJobs(jobs);
                         
                         // Enhance the data with job growth information
                         const enhancedData = jsonData.map(item => {
@@ -229,24 +270,32 @@
             const processData = (jsonData) => {
                 if (!jsonData || jsonData.length === 0) return;
                 
+                // Filter data based on search selection if applicable
+                let filteredData = jsonData;
+                if (searchSelectedJob) {
+                    filteredData = jsonData.filter(item => item["Job Opportunity"] === searchSelectedJob);
+                }
+                
                 // Extract unique values for each category
-                const uniqueStrengths = [...new Set(jsonData.map(item => item.Strength))];
-                const uniqueInterests = [...new Set(jsonData.map(item => item["Interest/Hobby"]))];
-                const uniqueEducation = [...new Set(jsonData.map(item => item["Educational Background"]))];
-                const uniqueJobs = [...new Set(jsonData.map(item => item["Job Opportunity"]))];
+                const uniqueStrengths = [...new Set(filteredData.map(item => item.Strength))];
+                const uniqueInterests = [...new Set(filteredData.map(item => item["Interest/Hobby"]))];
+                const uniqueEducation = [...new Set(filteredData.map(item => item["Educational Background"]))];
+                
+                // Get jobs either from search selection or all unique jobs
+                const jobsToInclude = searchSelectedJob ? [searchSelectedJob] : [...new Set(filteredData.map(item => item["Job Opportunity"]))];
                 
                 // Create nodes array
                 const nodesArray = [
                     ...uniqueStrengths.map(item => ({ id: item, group: 'strength', type: 'attribute' })),
                     ...uniqueInterests.map(item => ({ id: item, group: 'interest', type: 'attribute' })),
                     ...uniqueEducation.map(item => ({ id: item, group: 'education', type: 'attribute' })),
-                    ...uniqueJobs.map(item => ({ id: item, group: 'job', type: 'job' }))
+                    ...jobsToInclude.map(item => ({ id: item, group: 'job', type: 'job' }))
                 ];
                 
                 // Create links array
                 const linksArray = [];
                 
-                jsonData.forEach(entry => {
+                filteredData.forEach(entry => {
                     // Add links from strength to job
                     linksArray.push({
                         source: entry.Strength,
@@ -287,6 +336,34 @@
                 
                 setNodes(nodesWithConnections);
                 setLinks(linksArray);
+            };
+            
+            // Handle search job selection
+            const handleSearchChange = (e) => {
+                const selectedValue = e.target.value;
+                setSearchSelectedJob(selectedValue);
+                
+                // If a job is selected, process the data with that filter
+                if (selectedValue) {
+                    processData(data);
+                    
+                    // Also update job details panel
+                    setSelectedJobDetails(getJobDetails(selectedValue));
+                    setDetailsPanelOpen(true);
+                } else {
+                    // If cleared, show all data
+                    processData(data);
+                    setDetailsPanelOpen(false);
+                    setSelectedJobDetails(null);
+                }
+            };
+            
+            // Clear search
+            const clearSearch = () => {
+                setSearchSelectedJob('');
+                processData(data);
+                setDetailsPanelOpen(false);
+                setSelectedJobDetails(null);
             };
             
             // Filter nodes and links based on selected categories
@@ -415,6 +492,9 @@
                 if (node.group === 'job') {
                     setSelectedJobDetails(getJobDetails(node.id));
                     setDetailsPanelOpen(true);
+                    
+                    // Update search dropdown to match selected job
+                    setSearchSelectedJob(node.id);
                 }
             };
             
@@ -422,6 +502,12 @@
             const closeJobDetails = () => {
                 setDetailsPanelOpen(false);
                 setSelectedJobDetails(null);
+                
+                // Clear search selection if it exists
+                if (searchSelectedJob) {
+                    setSearchSelectedJob('');
+                    processData(data);
+                }
             };
             
             // Toggle category filters
@@ -562,6 +648,13 @@
                     simulation.stop();
                 };
             }, [nodes, links, selectedCategories, loading]);
+            
+            // Effect to update visualization when search selection changes
+            React.useEffect(() => {
+                if (data) {
+                    processData(data);
+                }
+            }, [searchSelectedJob]);
             
             // Section Header Component with toggle functionality
             const SectionHeader = ({ title, section, expandedSections, toggleSection }) => (
@@ -715,48 +808,68 @@
                     <div className="flex flex-col mb-4">
                         <h1 className="text-2xl font-bold mb-4">Job Network Visualization</h1>
                         
-                        {/* Category filters */}
-                        <div className="flex flex-wrap gap-4 mb-4">
-                            <div className="flex items-center">
-                                <input
-                                    type="checkbox"
-                                    id="strength"
-                                    checked={selectedCategories.strength}
-                                    onChange={() => toggleCategory('strength')}
-                                    className="mr-2"
-                                />
-                                <label htmlFor="strength" className="flex items-center">
-                                    <span className="w-4 h-4 inline-block bg-green-500 mr-2"></span>
-                                    Strengths
-                                </label>
+                        {/* Search bar and filters row */}
+                        <div className="flex flex-wrap justify-between items-center mb-4">
+                            {/* Search dropdown */}
+                            <div className="search-container mb-4 md:mb-0">
+                                <select
+                                    className="search-dropdown"
+                                    value={searchSelectedJob}
+                                    onChange={handleSearchChange}
+                                >
+                                    <option value="">Select a job to focus on...</option>
+                                    {uniqueJobs.map(job => (
+                                        <option key={job} value={job}>{job}</option>
+                                    ))}
+                                </select>
+                                {searchSelectedJob && (
+                                    <span className="clear-search" onClick={clearSearch}>✕</span>
+                                )}
                             </div>
                             
-                            <div className="flex items-center">
-                                <input
-                                    type="checkbox"
-                                    id="interest"
-                                    checked={selectedCategories.interest}
-                                    onChange={() => toggleCategory('interest')}
-                                    className="mr-2"
-                                />
-                                <label htmlFor="interest" className="flex items-center">
-                                    <span className="w-4 h-4 inline-block bg-blue-500 mr-2"></span>
-                                    Interests/Hobbies
-                                </label>
-                            </div>
-                            
-                            <div className="flex items-center">
-                                <input
-                                    type="checkbox"
-                                    id="education"
-                                    checked={selectedCategories.education}
-                                    onChange={() => toggleCategory('education')}
-                                    className="mr-2"
-                                />
-                                <label htmlFor="education" className="flex items-center">
-                                    <span className="w-4 h-4 inline-block bg-yellow-500 mr-2"></span>
-                                    Education
-                                </label>
+                            {/* Category filters */}
+                            <div className="flex flex-wrap gap-4">
+                                <div className="flex items-center">
+                                    <input
+                                        type="checkbox"
+                                        id="strength"
+                                        checked={selectedCategories.strength}
+                                        onChange={() => toggleCategory('strength')}
+                                        className="mr-2"
+                                    />
+                                    <label htmlFor="strength" className="flex items-center">
+                                        <span className="w-4 h-4 inline-block bg-green-500 mr-2"></span>
+                                        Strengths
+                                    </label>
+                                </div>
+                                
+                                <div className="flex items-center">
+                                    <input
+                                        type="checkbox"
+                                        id="interest"
+                                        checked={selectedCategories.interest}
+                                        onChange={() => toggleCategory('interest')}
+                                        className="mr-2"
+                                    />
+                                    <label htmlFor="interest" className="flex items-center">
+                                        <span className="w-4 h-4 inline-block bg-blue-500 mr-2"></span>
+                                        Interests/Hobbies
+                                    </label>
+                                </div>
+                                
+                                <div className="flex items-center">
+                                    <input
+                                        type="checkbox"
+                                        id="education"
+                                        checked={selectedCategories.education}
+                                        onChange={() => toggleCategory('education')}
+                                        className="mr-2"
+                                    />
+                                    <label htmlFor="education" className="flex items-center">
+                                        <span className="w-4 h-4 inline-block bg-yellow-500 mr-2"></span>
+                                        Education
+                                    </label>
+                                </div>
                             </div>
                         </div>
                         
@@ -948,7 +1061,8 @@
                     <div className="mt-4 text-sm text-gray-600">
                         <p>Instructions:</p>
                         <ul className="list-disc pl-5">
-                            <li>Select categories using checkboxes above</li>
+                            <li>Use the dropdown to search for specific jobs</li>
+                            <li>Select categories using checkboxes</li>
                             <li>Drag nodes to reposition</li>
                             <li>Click on a job node (red) to view details</li>
                             <li>Click section headers in job details to expand/collapse</li>
