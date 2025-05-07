@@ -42,32 +42,30 @@
 <body>
     <div id="root" class="h-full"></div>
 
-    <!-- Data file (Base64 encoded Excel file) -->
+    <!-- Virtual file system for the React component -->
     <script>
-        // This will be replaced with the actual Excel file content
-        const excelFileBase64 = "excel_base64.txt";
-        
-        // Create a virtual file system for the React component
+        // Create a virtual file system that fetches the Excel file directly
         window.fs = {
             readFile: async (filename, options = {}) => {
                 // If it's our Excel file
                 if (filename === 'job Opp_10.xlsx') {
-                    // Convert base64 to array buffer
-                    const binaryString = window.atob(excelFileBase64);
-                    const len = binaryString.length;
-                    const bytes = new Uint8Array(len);
-                    for (let i = 0; i < len; i++) {
-                        bytes[i] = binaryString.charCodeAt(i);
+                    try {
+                        // Fetch the file directly from the repository
+                        const response = await fetch('job Opp_10.xlsx');
+                        const arrayBuffer = await response.arrayBuffer();
+                        
+                        // If encoding is specified, return as string
+                        if (options.encoding === 'utf8') {
+                            const decoder = new TextDecoder('utf-8');
+                            return decoder.decode(new Uint8Array(arrayBuffer));
+                        }
+                        
+                        // Otherwise return as ArrayBuffer
+                        return arrayBuffer;
+                    } catch (error) {
+                        console.error("Error fetching Excel file:", error);
+                        throw error;
                     }
-                    
-                    // If encoding is specified, return as string
-                    if (options.encoding === 'utf8') {
-                        const decoder = new TextDecoder('utf-8');
-                        return decoder.decode(bytes);
-                    }
-                    
-                    // Otherwise return as ArrayBuffer
-                    return bytes.buffer;
                 }
                 
                 throw new Error(`File ${filename} not found`);
@@ -491,29 +489,6 @@
         const rootElement = document.getElementById('root');
         const root = ReactDOM.createRoot(rootElement);
         root.render(<JobNetworkVisualization />);
-    </script>
-
-    <!-- Instructions for adding Excel data -->
-    <script>
-        /*
-        IMPORTANT: To use this visualization with your own data:
-        1. Convert your Excel file to Base64 format
-        2. Replace the value of 'excelFileBase64' variable above with your Base64 string
-        
-        You can convert Excel to Base64 using online converters or with this JavaScript code:
-        
-        function excelToBase64(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload = () => {
-                    let base64 = reader.result.split(',')[1];
-                    resolve(base64);
-                };
-                reader.onerror = error => reject(error);
-            });
-        }
-        */
     </script>
 </body>
 </html>
