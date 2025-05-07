@@ -3,14 +3,481 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Job Network Visualization</title>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <title>Job Opportunity Network Visualization</title>
+  
+  <!-- D3.js -->
   <script src="https://d3js.org/d3.v7.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <style>
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+    }
+    .node {
+      cursor: pointer;
+    }
+    .link {
+      stroke-opacity: 0.6;
+      stroke-width: 1.5px;
+    }
+    /* Category-specific styles */
+    .node-job circle { fill: #6baed6; }
+    .node-strength circle { fill: #f16913; }
+    .node-interest circle { fill: #74c476; }
+    .node-education circle { fill: #9e9ac8; }
+    
+    .link-job-strength { stroke: #f16913; }
+    .link-job-interest { stroke: #74c476; }
+    .link-job-education { stroke: #9e9ac8; }
+    
+    .node.selected circle {
+      stroke: #ff9900;
+      stroke-width: 3px;
+    }
+    
+    .visualization-container {
+      position: relative;
+      width: 100%;
+      height: 600px;
+      background-color: #f9fafb;
+    }
+    
+    .details-panel {
+      position: absolute;
+      right: 0;
+      top: 0;
+      width: 280px;
+      height: 100%;
+      background-color: white;
+      box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+      padding: 1rem;
+      transform: translateX(100%);
+      transition: transform 0.3s ease;
+      z-index: 10;
+      overflow-y: auto;
+    }
+    
+    .details-panel.active {
+      transform: translateX(0);
+    }
+    
+    .search-box {
+      width: 100%;
+      padding: 0.5rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 0.375rem;
+    }
+    
+    /* Loading spinner */
+    .loader {
+      border: 5px solid #f3f3f3;
+      border-top: 5px solid #3498db;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      animation: spin 1s linear infinite;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      margin-top: -25px;
+      margin-left: -25px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
 </head>
 <body>
-  <div id="root"></div>
-  <script src="./data.js"></script>
-  <script src="./app.js"></script>
+  <!-- Include the preprocessed network data -->
+  <script src="network-data.js"></script>
+  
+  <div class="min-h-screen bg-gray-50">
+    <!-- Header -->
+    <header class="bg-blue-600 text-white p-4">
+      <div class="container mx-auto">
+        <h1 class="text-2xl font-bold">Job Opportunity Network</h1>
+        <p class="text-sm mt-1">Explore connections between strengths, interests, and education to find your ideal job</p>
+      </div>
+    </header>
+    
+    <!-- Controls -->
+    <div class="bg-white p-4 shadow">
+      <div class="container mx-auto">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+          <!-- Category Filters -->
+          <div class="flex flex-wrap items-center gap-4">
+            <span class="font-medium">Categories:</span>
+            
+            <label class="flex items-center space-x-2 cursor-pointer">
+              <input type="checkbox" id="filter-strength" checked class="h-4 w-4 text-blue-600">
+              <span class="text-sm flex items-center">
+                <span class="inline-block h-3 w-3 rounded-full bg-orange-500 mr-1"></span>
+                Strengths
+              </span>
+            </label>
+            
+            <label class="flex items-center space-x-2 cursor-pointer">
+              <input type="checkbox" id="filter-interest" checked class="h-4 w-4 text-blue-600">
+              <span class="text-sm flex items-center">
+                <span class="inline-block h-3 w-3 rounded-full bg-green-500 mr-1"></span>
+                Interests/Hobbies
+              </span>
+            </label>
+            
+            <label class="flex items-center space-x-2 cursor-pointer">
+              <input type="checkbox" id="filter-education" checked class="h-4 w-4 text-blue-600">
+              <span class="text-sm flex items-center">
+                <span class="inline-block h-3 w-3 rounded-full bg-purple-500 mr-1"></span>
+                Education
+              </span>
+            </label>
+          </div>
+          
+          <!-- Search -->
+          <div class="w-full md:w-auto md:flex-grow md:ml-4">
+            <input 
+              type="text" 
+              id="search-input" 
+              placeholder="Search jobs, skills, industries..."
+              class="search-box"
+            >
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Main Visualization -->
+    <div class="container mx-auto p-4">
+      <div class="visualization-container">
+        <div id="loading" class="loader"></div>
+        <svg id="visualization" width="100%" height="100%"></svg>
+        
+        <!-- Job Details Panel -->
+        <div id="details-panel" class="details-panel">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="font-bold text-lg">Job Details</h2>
+            <button id="close-details" class="text-gray-500 hover:text-gray-700 text-xl">&times;</button>
+          </div>
+          <div id="job-details-content"></div>
+        </div>
+      </div>
+      
+      <!-- Legend -->
+      <div class="bg-white p-3 mt-4 rounded shadow">
+        <div class="flex flex-wrap items-center justify-between">
+          <div class="flex flex-wrap items-center gap-4">
+            <div class="text-sm flex items-center">
+              <span class="inline-block h-3 w-3 rounded-full bg-blue-500 mr-1"></span>
+              Jobs
+            </div>
+            <div class="text-sm flex items-center">
+              <span class="inline-block h-3 w-3 rounded-full bg-orange-500 mr-1"></span>
+              Strengths
+            </div>
+            <div class="text-sm flex items-center">
+              <span class="inline-block h-3 w-3 rounded-full bg-green-500 mr-1"></span>
+              Interests
+            </div>
+            <div class="text-sm flex items-center">
+              <span class="inline-block h-3 w-3 rounded-full bg-purple-500 mr-1"></span>
+              Education
+            </div>
+          </div>
+          
+          <div class="text-sm text-gray-500">
+            * Node size represents number of connections
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Visualization Script -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // DOM elements
+      const visualization = document.getElementById('visualization');
+      const detailsPanel = document.getElementById('details-panel');
+      const jobDetailsContent = document.getElementById('job-details-content');
+      const closeDetailsButton = document.getElementById('close-details');
+      const searchInput = document.getElementById('search-input');
+      const strengthCheckbox = document.getElementById('filter-strength');
+      const interestCheckbox = document.getElementById('filter-interest');
+      const educationCheckbox = document.getElementById('filter-education');
+      const loadingIndicator = document.getElementById('loading');
+      
+      // State
+      let selectedJob = null;
+      let simulation = null;
+      
+      // Initialize D3 visualization
+      const svg = d3.select('#visualization');
+      
+      // Get network data from the preprocessed file
+      // If NETWORK_DATA isn't available, provide empty default
+      const data = window.NETWORK_DATA || { nodes: [], links: [] };
+      
+      // Hide loading indicator once data is ready
+      loadingIndicator.style.display = 'none';
+      
+      // Initial render
+      renderVisualization(getFilteredData());
+      
+      // Event listeners
+      searchInput.addEventListener('input', updateVisualization);
+      strengthCheckbox.addEventListener('change', updateVisualization);
+      interestCheckbox.addEventListener('change', updateVisualization);
+      educationCheckbox.addEventListener('change', updateVisualization);
+      closeDetailsButton.addEventListener('click', closeDetailsPanel);
+      
+      // Handle window resize
+      window.addEventListener('resize', () => {
+        renderVisualization(getFilteredData());
+      });
+      
+      // Update visualization based on current filters
+      function updateVisualization() {
+        const filteredData = getFilteredData();
+        renderVisualization(filteredData);
+      }
+      
+      // Get data filtered by current settings
+      function getFilteredData() {
+        // Get filter states
+        const filters = {
+          strength: strengthCheckbox.checked,
+          interest: interestCheckbox.checked,
+          education: educationCheckbox.checked
+        };
+        
+        const searchTerm = searchInput.value.toLowerCase();
+        
+        // Filter nodes
+        const filteredNodes = data.nodes.filter(node => {
+          // Always include job nodes in base set
+          if (node.type === 'job') {
+            // Apply search filter to jobs
+            if (searchTerm && !node.name.toLowerCase().includes(searchTerm) && 
+                !node.industry.toLowerCase().includes(searchTerm)) {
+              return false;
+            }
+            return true;
+          }
+          
+          // Filter by node type and category selection
+          if (node.type === 'strength' && !filters.strength) return false;
+          if (node.type === 'interest' && !filters.interest) return false;
+          if (node.type === 'education' && !filters.education) return false;
+          
+          // Apply search filter to attribute nodes
+          if (searchTerm && !node.name.toLowerCase().includes(searchTerm)) {
+            return false;
+          }
+          
+          return true;
+        });
+        
+        // Get filtered node IDs for quick lookup
+        const filteredNodeIds = new Set(filteredNodes.map(node => node.id));
+        
+        // Filter links
+        const filteredLinks = data.links.filter(link => {
+          const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+          const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+          
+          // Only keep links where both nodes exist in filtered set
+          if (!filteredNodeIds.has(sourceId) || !filteredNodeIds.has(targetId)) {
+            return false;
+          }
+          
+          // Check link type against filters
+          if (link.type === 'job-strength' && !filters.strength) return false;
+          if (link.type === 'job-interest' && !filters.interest) return false;
+          if (link.type === 'job-education' && !filters.education) return false;
+          
+          return true;
+        });
+        
+        return { 
+          nodes: filteredNodes, 
+          links: filteredLinks.map(link => ({...link})) // Create copies to avoid D3 mutation issues
+        };
+      }
+      
+      // Render the force-directed graph
+      function renderVisualization(graphData) {
+        // Stop previous simulation
+        if (simulation) simulation.stop();
+        
+        // Clear previous visualization
+        svg.selectAll('*').remove();
+        
+        // Skip if no data
+        if (!graphData.nodes.length) {
+          svg.append('text')
+            .attr('x', '50%')
+            .attr('y', '50%')
+            .attr('text-anchor', 'middle')
+            .text('No matching results. Try adjusting your filters.');
+          return;
+        }
+        
+        // Get container dimensions
+        const width = visualization.clientWidth;
+        const height = visualization.clientHeight;
+        
+        // Create simulation
+        simulation = d3.forceSimulation(graphData.nodes)
+          .force('link', d3.forceLink(graphData.links)
+            .id(d => d.id)
+            .distance(100))
+          .force('charge', d3.forceManyBody().strength(-200))
+          .force('center', d3.forceCenter(width / 2, height / 2))
+          .force('collision', d3.forceCollide().radius(d => getNodeRadius(d) + 5));
+        
+        // Create container groups
+        const linksGroup = svg.append('g').attr('class', 'links');
+        const nodesGroup = svg.append('g').attr('class', 'nodes');
+        
+        // Create links
+        const link = linksGroup
+          .selectAll('line')
+          .data(graphData.links)
+          .enter()
+          .append('line')
+          .attr('class', d => `link link-${d.type}`)
+          .attr('stroke-width', 1.5);
+        
+        // Create node groups
+        const node = nodesGroup
+          .selectAll('.node')
+          .data(graphData.nodes)
+          .enter()
+          .append('g')
+          .attr('class', d => `node node-${d.type} ${selectedJob && d.id === selectedJob.id ? 'selected' : ''}`)
+          .on('click', (event, d) => {
+            if (d.type === 'job') {
+              selectedJob = d;
+              showJobDetails(d);
+              
+              // Update selected state
+              svg.selectAll('.node').classed('selected', n => n.id === d.id);
+            }
+          })
+          .call(d3.drag()
+            .on('start', dragstarted)
+            .on('drag', dragged)
+            .on('end', dragended));
+        
+        // Add circles to nodes
+        node.append('circle')
+          .attr('r', getNodeRadius);
+        
+        // Add text labels
+        node.append('text')
+          .attr('dx', d => d.type === 'job' ? -3 : 12)
+          .attr('dy', '.35em')
+          .attr('font-size', d => d.type === 'job' ? '10px' : '8px')
+          .text(d => truncateLabel(d.name))
+          .attr('fill', '#333');
+        
+        // Update simulation on each tick
+        simulation.on('tick', () => {
+          link
+            .attr('x1', d => Math.max(0, Math.min(width, d.source.x)))
+            .attr('y1', d => Math.max(0, Math.min(height, d.source.y)))
+            .attr('x2', d => Math.max(0, Math.min(width, d.target.x)))
+            .attr('y2', d => Math.max(0, Math.min(height, d.target.y)));
+          
+          node
+            .attr('transform', d => {
+              const x = Math.max(20, Math.min(width - 20, d.x));
+              const y = Math.max(20, Math.min(height - 20, d.y));
+              return `translate(${x}, ${y})`;
+            });
+        });
+      }
+      
+      // Show job details panel with selected job info
+      function showJobDetails(job) {
+        jobDetailsContent.innerHTML = `
+          <h3 class="font-medium text-blue-600 mb-2">${job.name}</h3>
+          
+          <div class="space-y-2 text-sm">
+            <div>
+              <span class="font-medium">Industry:</span> ${job.industry}
+            </div>
+            <div>
+              <span class="font-medium">Salary Range:</span> ${job.salary}
+            </div>
+            <div>
+              <span class="font-medium">Work Mode:</span> ${job.workMode}
+            </div>
+            <div>
+              <span class="font-medium">Connections:</span> ${job.connections}
+            </div>
+            
+            ${job.sourceLink && job.sourceLink !== '#' ? `
+              <div class="pt-2">
+                <a 
+                  href="${job.sourceLink}" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  class="text-blue-600 hover:underline inline-block mt-2"
+                >
+                  View Job Listing
+                </a>
+              </div>
+            ` : ''}
+          </div>
+        `;
+        
+        detailsPanel.classList.add('active');
+      }
+      
+      // Close the details panel
+      function closeDetailsPanel() {
+        detailsPanel.classList.remove('active');
+        selectedJob = null;
+        svg.selectAll('.node').classed('selected', false);
+      }
+      
+      // Helper functions
+      function getNodeRadius(d) {
+        const baseSize = d.type === 'job' ? 8 : 6;
+        const connectionBonus = Math.sqrt(d.connections || 1) * 1.5;
+        return baseSize + connectionBonus;
+      }
+      
+      function truncateLabel(text) {
+        return text.length > 20 ? text.substring(0, 17) + '...' : text;
+      }
+      
+      // Drag functions
+      function dragstarted(event, d) {
+        if (!event.active) simulation.alphaTarget(0.3).restart();
+        d.fx = d.x;
+        d.fy = d.y;
+      }
+      
+      function dragged(event, d) {
+        d.fx = event.x;
+        d.fy = event.y;
+      }
+      
+      function dragended(event, d) {
+        if (!event.active) simulation.alphaTarget(0);
+        d.fx = null;
+        d.fy = null;
+      }
+    });
+  </script>
 </body>
 </html>
