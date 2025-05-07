@@ -5,30 +5,146 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Job Opportunity Network Visualization</title>
   
-    
   <!-- D3.js -->
   <script src="https://d3js.org/d3.v7.min.js"></script>
   
-  <!-- Tailwind CSS via CDN -->
-  <link href="tailwind.min.css" rel="stylesheet">
-  
-  <script src="network-data.js"></script> 
-  
   <style>
+    /* Base styles */
     body {
-      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      font-family: system-ui, -apple-system, sans-serif;
       margin: 0;
       padding: 0;
-      overflow-x: hidden;
+      background-color: #f9fafb;
+      color: #333;
+      line-height: 1.5;
     }
+    
+    /* Layout */
+    .container {
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 1rem;
+    }
+    
+    .header {
+      background-color: #2563eb;
+      color: white;
+      padding: 1rem 0;
+    }
+    
+    .header h1 {
+      margin: 0;
+      font-size: 1.5rem;
+      font-weight: bold;
+    }
+    
+    .header p {
+      margin: 0.25rem 0 0;
+      font-size: 0.875rem;
+      opacity: 0.9;
+    }
+    
+    .controls {
+      background-color: white;
+      padding: 1rem 0;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      margin-bottom: 1.5rem;
+    }
+    
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+    
+    .filter-label {
+      font-weight: 500;
+      margin-right: 0.5rem;
+    }
+    
+    .filter-option {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+    }
+    
+    .color-dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+    
+    .dot-job { background-color: #6baed6; }
+    .dot-strength { background-color: #f16913; }
+    .dot-interest { background-color: #74c476; }
+    .dot-education { background-color: #9e9ac8; }
+    
+    .search-box {
+      width: 100%;
+      padding: 0.5rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 0.375rem;
+      font-size: 0.875rem;
+    }
+    
+    .visualization-container {
+      position: relative;
+      width: 100%;
+      height: 600px;
+      background-color: white;
+      border-radius: 0.375rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+    
+    .legend {
+      background-color: white;
+      padding: 0.75rem;
+      border-radius: 0.375rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      margin-top: 1rem;
+    }
+    
+    .legend-items {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .legend-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      font-size: 0.875rem;
+    }
+    
+    .legend-note {
+      font-size: 0.75rem;
+      color: #6b7280;
+    }
+    
+    /* Node and link styles */
     .node {
       cursor: pointer;
     }
+    
     .link {
       stroke-opacity: 0.6;
       stroke-width: 1.5px;
     }
-    /* Category-specific styles */
+    
     .node-job circle { fill: #6baed6; }
     .node-strength circle { fill: #f16913; }
     .node-interest circle { fill: #74c476; }
@@ -43,13 +159,7 @@
       stroke-width: 3px;
     }
     
-    .visualization-container {
-      position: relative;
-      width: 100%;
-      height: 600px;
-      background-color: #f9fafb;
-    }
-    
+    /* Details panel */
     .details-panel {
       position: absolute;
       right: 0;
@@ -63,17 +173,66 @@
       transition: transform 0.3s ease;
       z-index: 10;
       overflow-y: auto;
+      box-sizing: border-box;
     }
     
     .details-panel.active {
       transform: translateX(0);
     }
     
-    .search-box {
-      width: 100%;
-      padding: 0.5rem;
-      border: 1px solid #e5e7eb;
-      border-radius: 0.375rem;
+    .details-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      border-bottom: 1px solid #f3f4f6;
+      padding-bottom: 0.5rem;
+    }
+    
+    .details-header h2 {
+      margin: 0;
+      font-size: 1.25rem;
+      font-weight: bold;
+    }
+    
+    .close-button {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 1.5rem;
+      color: #6b7280;
+    }
+    
+    .close-button:hover {
+      color: #374151;
+    }
+    
+    .job-title {
+      color: #2563eb;
+      margin: 0 0 0.75rem 0;
+      font-weight: 500;
+      font-size: 1.125rem;
+    }
+    
+    .details-field {
+      margin-bottom: 0.5rem;
+      font-size: 0.875rem;
+    }
+    
+    .details-field span {
+      font-weight: 500;
+    }
+    
+    .source-link {
+      display: inline-block;
+      color: #2563eb;
+      text-decoration: none;
+      margin-top: 1rem;
+      font-size: 0.875rem;
+    }
+    
+    .source-link:hover {
+      text-decoration: underline;
     }
     
     /* Loading spinner */
@@ -95,393 +254,799 @@
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+      .filters {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      
+      .legend-items {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      
+      .legend-group {
+        margin-bottom: 0.5rem;
+      }
+      
+      .legend-note {
+        margin-top: 0.5rem;
+      }
+    }
   </style>
 </head>
 <body>
-  <!-- Include the preprocessed network data -->
- <!-- <script src="network-data.js"></script>-->
-
- <!-- <script src="https://shanthissvm.github.io/job-network-viz/network-data.js"> </script>  -->
-  <div class="min-h-screen bg-gray-50">
-    <!-- Header -->
-    <header class="bg-blue-600 text-white p-4">
-      <div class="container mx-auto">
-        <h1 class="text-2xl font-bold">Job Opportunity Network</h1>
-        <p class="text-sm mt-1">Explore connections between strengths, interests, and education to find your ideal job</p>
+  <!-- Header -->
+  <div class="header">
+    <div class="container">
+      <h1>Job Opportunity Network</h1>
+      <p>Explore connections between strengths, interests, and education to find your ideal job</p>
+    </div>
+  </div>
+  
+  <!-- Controls -->
+  <div class="controls">
+    <div class="container">
+      <div class="filters">
+        <div class="filter-label">Categories:</div>
+        
+        <label class="filter-option">
+          <input type="checkbox" id="filter-strength" checked>
+          <span class="color-dot dot-strength"></span>
+          <span>Strengths</span>
+        </label>
+        
+        <label class="filter-option">
+          <input type="checkbox" id="filter-interest" checked>
+          <span class="color-dot dot-interest"></span>
+          <span>Interests/Hobbies</span>
+        </label>
+        
+        <label class="filter-option">
+          <input type="checkbox" id="filter-education" checked>
+          <span class="color-dot dot-education"></span>
+          <span>Education</span>
+        </label>
       </div>
-    </header>
-    
-    <!-- Controls -->
-    <div class="bg-white p-4 shadow">
-      <div class="container mx-auto">
-        <div class="flex flex-wrap items-center justify-between gap-4">
-          <!-- Category Filters -->
-          <div class="flex flex-wrap items-center gap-4">
-            <span class="font-medium">Categories:</span>
-            
-            <label class="flex items-center space-x-2 cursor-pointer">
-              <input type="checkbox" id="filter-strength" checked class="h-4 w-4 text-blue-600">
-              <span class="text-sm flex items-center">
-                <span class="inline-block h-3 w-3 rounded-full bg-orange-500 mr-1"></span>
-                Strengths
-              </span>
-            </label>
-            
-            <label class="flex items-center space-x-2 cursor-pointer">
-              <input type="checkbox" id="filter-interest" checked class="h-4 w-4 text-blue-600">
-              <span class="text-sm flex items-center">
-                <span class="inline-block h-3 w-3 rounded-full bg-green-500 mr-1"></span>
-                Interests/Hobbies
-              </span>
-            </label>
-            
-            <label class="flex items-center space-x-2 cursor-pointer">
-              <input type="checkbox" id="filter-education" checked class="h-4 w-4 text-blue-600">
-              <span class="text-sm flex items-center">
-                <span class="inline-block h-3 w-3 rounded-full bg-purple-500 mr-1"></span>
-                Education
-              </span>
-            </label>
-          </div>
-          
-          <!-- Search -->
-          <div class="w-full md:w-auto md:flex-grow md:ml-4">
-            <input 
-              type="text" 
-              id="search-input" 
-              placeholder="Search jobs, skills, industries..."
-              class="search-box"
-            >
-          </div>
+      
+      <input 
+        type="text" 
+        id="search-input" 
+        placeholder="Search jobs, skills, industries..." 
+        class="search-box"
+      >
+    </div>
+  </div>
+  
+  <!-- Main content -->
+  <div class="container">
+    <div class="visualization-container">
+      <div id="loading" class="loader"></div>
+      <svg id="visualization" width="100%" height="100%"></svg>
+      
+      <!-- Job Details Panel -->
+      <div id="details-panel" class="details-panel">
+        <div class="details-header">
+          <h2>Job Details</h2>
+          <button id="close-details" class="close-button">&times;</button>
         </div>
+        <div id="job-details-content"></div>
       </div>
     </div>
     
-    <!-- Main Visualization -->
-    <div class="container mx-auto p-4">
-      <div class="visualization-container">
-        <div id="loading" class="loader"></div>
-        <svg id="visualization" width="100%" height="100%"></svg>
-        
-        <!-- Job Details Panel -->
-        <div id="details-panel" class="details-panel">
-          <div class="flex justify-between items-center mb-4">
-            <h2 class="font-bold text-lg">Job Details</h2>
-            <button id="close-details" class="text-gray-500 hover:text-gray-700 text-xl">&times;</button>
+    <!-- Legend -->
+    <div class="legend">
+      <div class="legend-items">
+        <div class="legend-group">
+          <div class="legend-item">
+            <span class="color-dot dot-job"></span>
+            <span>Jobs</span>
           </div>
-          <div id="job-details-content"></div>
+          <div class="legend-item">
+            <span class="color-dot dot-strength"></span>
+            <span>Strengths</span>
+          </div>
+          <div class="legend-item">
+            <span class="color-dot dot-interest"></span>
+            <span>Interests</span>
+          </div>
+          <div class="legend-item">
+            <span class="color-dot dot-education"></span>
+            <span>Education</span>
+          </div>
         </div>
-      </div>
-      
-      <!-- Legend -->
-      <div class="bg-white p-3 mt-4 rounded shadow">
-        <div class="flex flex-wrap items-center justify-between">
-          <div class="flex flex-wrap items-center gap-4">
-            <div class="text-sm flex items-center">
-              <span class="inline-block h-3 w-3 rounded-full bg-blue-500 mr-1"></span>
-              Jobs
-            </div>
-            <div class="text-sm flex items-center">
-              <span class="inline-block h-3 w-3 rounded-full bg-orange-500 mr-1"></span>
-              Strengths
-            </div>
-            <div class="text-sm flex items-center">
-              <span class="inline-block h-3 w-3 rounded-full bg-green-500 mr-1"></span>
-              Interests
-            </div>
-            <div class="text-sm flex items-center">
-              <span class="inline-block h-3 w-3 rounded-full bg-purple-500 mr-1"></span>
-              Education
-            </div>
-          </div>
-          
-          <div class="text-sm text-gray-500">
-            * Node size represents number of connections
-          </div>
+        
+        <div class="legend-note">
+          * Node size represents number of connections
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Visualization Script -->
+  <!-- Network data embedded directly -->
   <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      // DOM elements
-      const visualization = document.getElementById('visualization');
-      const detailsPanel = document.getElementById('details-panel');
-      const jobDetailsContent = document.getElementById('job-details-content');
-      const closeDetailsButton = document.getElementById('close-details');
-      const searchInput = document.getElementById('search-input');
-      const strengthCheckbox = document.getElementById('filter-strength');
-      const interestCheckbox = document.getElementById('filter-interest');
-      const educationCheckbox = document.getElementById('filter-education');
-      const loadingIndicator = document.getElementById('loading');
-      
-      // State
-      let selectedJob = null;
-      let simulation = null;
-      
-      // Initialize D3 visualization
-      const svg = d3.select('#visualization');
-      
-      // Get network data from the preprocessed file
-      // If NETWORK_DATA isn't available, provide empty default
-      const data = window.NETWORK_DATA || { nodes: [], links: [] };
-      
-      // Hide loading indicator once data is ready
-      loadingIndicator.style.display = 'none';
-      
-      // Initial render
-      renderVisualization(getFilteredData());
-      
-      // Event listeners
-      searchInput.addEventListener('input', updateVisualization);
-      strengthCheckbox.addEventListener('change', updateVisualization);
-      interestCheckbox.addEventListener('change', updateVisualization);
-      educationCheckbox.addEventListener('change', updateVisualization);
-      closeDetailsButton.addEventListener('click', closeDetailsPanel);
-      
-      // Handle window resize
-      window.addEventListener('resize', () => {
-        renderVisualization(getFilteredData());
-      });
-      
-      // Update visualization based on current filters
-      function updateVisualization() {
-        const filteredData = getFilteredData();
-        renderVisualization(filteredData);
-      }
-      
-      // Get data filtered by current settings
-      function getFilteredData() {
-        // Get filter states
-        const filters = {
-          strength: strengthCheckbox.checked,
-          interest: interestCheckbox.checked,
-          education: educationCheckbox.checked
-        };
-        
-        const searchTerm = searchInput.value.toLowerCase();
-        
-        // Filter nodes
-        const filteredNodes = data.nodes.filter(node => {
-          // Always include job nodes in base set
-          if (node.type === 'job') {
-            // Apply search filter to jobs
-            if (searchTerm && !node.name.toLowerCase().includes(searchTerm) && 
-                !node.industry.toLowerCase().includes(searchTerm)) {
-              return false;
-            }
-            return true;
-          }
-          
-          // Filter by node type and category selection
-          if (node.type === 'strength' && !filters.strength) return false;
-          if (node.type === 'interest' && !filters.interest) return false;
-          if (node.type === 'education' && !filters.education) return false;
-          
-          // Apply search filter to attribute nodes
-          if (searchTerm && !node.name.toLowerCase().includes(searchTerm)) {
-            return false;
-          }
-          
-          return true;
-        });
-        
-        // Get filtered node IDs for quick lookup
-        const filteredNodeIds = new Set(filteredNodes.map(node => node.id));
-        
-        // Filter links
-        const filteredLinks = data.links.filter(link => {
-          const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
-          const targetId = typeof link.target === 'object' ? link.target.id : link.target;
-          
-          // Only keep links where both nodes exist in filtered set
-          if (!filteredNodeIds.has(sourceId) || !filteredNodeIds.has(targetId)) {
-            return false;
-          }
-          
-          // Check link type against filters
-          if (link.type === 'job-strength' && !filters.strength) return false;
-          if (link.type === 'job-interest' && !filters.interest) return false;
-          if (link.type === 'job-education' && !filters.education) return false;
-          
-          return true;
-        });
-        
-        return { 
-          nodes: filteredNodes, 
-          links: filteredLinks.map(link => ({...link})) // Create copies to avoid D3 mutation issues
-        };
-      }
-      
-      // Render the force-directed graph
-      function renderVisualization(graphData) {
-        // Stop previous simulation
-        if (simulation) simulation.stop();
-        
-        // Clear previous visualization
-        svg.selectAll('*').remove();
-        
-        // Skip if no data
-        if (!graphData.nodes.length) {
-          svg.append('text')
-            .attr('x', '50%')
-            .attr('y', '50%')
-            .attr('text-anchor', 'middle')
-            .text('No matching results. Try adjusting your filters.');
-          return;
+    // Pre-processed network data from Excel job Opp_10.xlsx
+    const NETWORK_DATA = {
+      "nodes": [
+        {
+          "id": 0,
+          "name": "Software Engineer",
+          "type": "job",
+          "industry": "Business",
+          "salary": "$120k+",
+          "workMode": "On-site",
+          "sourceLink": "https://www.linkedin.com/jobs",
+          "connections": 15
+        },
+        {
+          "id": 1,
+          "name": "Data Scientist",
+          "type": "job",
+          "industry": "Business",
+          "salary": "$120k+",
+          "workMode": "Hybrid",
+          "sourceLink": "https://www.glassdoor.com",
+          "connections": 15
+        },
+        {
+          "id": 2,
+          "name": "Project Manager",
+          "type": "job",
+          "industry": "Creative Arts",
+          "salary": "$40k-$60k",
+          "workMode": "On-site",
+          "sourceLink": "https://www.flexjobs.com",
+          "connections": 15
+        },
+        {
+          "id": 3,
+          "name": "UX Designer",
+          "type": "job",
+          "industry": "Technology",
+          "salary": "$120k+",
+          "workMode": "On-site",
+          "sourceLink": "https://www.glassdoor.com",
+          "connections": 15
+        },
+        {
+          "id": 4,
+          "name": "Digital Marketer",
+          "type": "job",
+          "industry": "Technology",
+          "salary": "$80k-$100k",
+          "workMode": "On-site",
+          "sourceLink": "https://www.glassdoor.com",
+          "connections": 15
+        },
+        {
+          "id": 5,
+          "name": "Financial Analyst",
+          "type": "job",
+          "industry": "Business",
+          "salary": "$80k-$100k",
+          "workMode": "Hybrid",
+          "sourceLink": "https://www.flexjobs.com",
+          "connections": 15
+        },
+        {
+          "id": 6,
+          "name": "Graphic Designer",
+          "type": "job",
+          "industry": "Creative Arts",
+          "salary": "$60k-$80k",
+          "workMode": "Remote",
+          "sourceLink": "https://www.flexjobs.com",
+          "connections": 15
+        },
+        {
+          "id": 7,
+          "name": "HR Specialist",
+          "type": "job",
+          "industry": "Business",
+          "salary": "$60k-$80k",
+          "workMode": "On-site",
+          "sourceLink": "https://www.indeed.com",
+          "connections": 15
+        },
+        {
+          "id": 8,
+          "name": "Operations Manager",
+          "type": "job",
+          "industry": "Business",
+          "salary": "$100k-$120k",
+          "workMode": "On-site",
+          "sourceLink": "https://www.indeed.com",
+          "connections": 15
+        },
+        {
+          "id": 9,
+          "name": "Content Writer",
+          "type": "job",
+          "industry": "Creative Arts",
+          "salary": "$60k-$80k",
+          "workMode": "Remote",
+          "sourceLink": "https://www.upwork.com",
+          "connections": 15
+        },
+        {
+          "id": 10,
+          "name": "Product Manager",
+          "type": "job",
+          "industry": "Technology",
+          "salary": "$100k-$120k",
+          "workMode": "Hybrid",
+          "sourceLink": "https://www.linkedin.com/jobs",
+          "connections": 15
+        },
+        {
+          "id": 11,
+          "name": "DevOps Engineer",
+          "type": "job",
+          "industry": "Technology",
+          "salary": "$120k+",
+          "workMode": "Hybrid",
+          "sourceLink": "https://www.linkedin.com/jobs",
+          "connections": 15
+        },
+        {
+          "id": 12,
+          "name": "Customer Service Rep",
+          "type": "job",
+          "industry": "Business",
+          "salary": "$40k-$60k",
+          "workMode": "Remote",
+          "sourceLink": "https://www.indeed.com",
+          "connections": 15
+        },
+        {
+          "id": 13,
+          "name": "Sales Representative",
+          "type": "job",
+          "industry": "Business",
+          "salary": "$60k-$80k",
+          "workMode": "Hybrid",
+          "sourceLink": "https://www.glassdoor.com",
+          "connections": 15
+        },
+        {
+          "id": 14,
+          "name": "Business Analyst",
+          "type": "job",
+          "industry": "Business",
+          "salary": "$80k-$100k",
+          "workMode": "On-site",
+          "sourceLink": "https://www.linkedin.com/jobs",
+          "connections": 15
+        },
+        {
+          "id": 15,
+          "name": "Marketing Manager",
+          "type": "job",
+          "industry": "Creative Arts",
+          "salary": "$100k-$120k",
+          "workMode": "Hybrid",
+          "sourceLink": "https://www.glassdoor.com",
+          "connections": 15
+        },
+        {
+          "id": 16,
+          "name": "Social Media Manager",
+          "type": "job",
+          "industry": "Creative Arts",
+          "salary": "$60k-$80k",
+          "workMode": "Remote",
+          "sourceLink": "https://www.upwork.com",
+          "connections": 15
+        },
+        {
+          "id": 17,
+          "name": "Web Developer",
+          "type": "job",
+          "industry": "Technology",
+          "salary": "$80k-$100k",
+          "workMode": "Hybrid",
+          "sourceLink": "https://www.linkedin.com/jobs",
+          "connections": 15
+        },
+        {
+          "id": 18,
+          "name": "Systems Administrator",
+          "type": "job",
+          "industry": "Technology",
+          "salary": "$80k-$100k",
+          "workMode": "On-site",
+          "sourceLink": "https://www.dice.com",
+          "connections": 15
+        },
+        {
+          "id": 19,
+          "name": "Research Scientist",
+          "type": "job",
+          "industry": "Technology",
+          "salary": "$100k-$120k",
+          "workMode": "On-site",
+          "sourceLink": "https://www.linkedin.com/jobs",
+          "connections": 15
+        },
+        {
+          "id": 20,
+          "name": "Teacher",
+          "type": "job",
+          "industry": "Education",
+          "salary": "$40k-$60k",
+          "workMode": "On-site",
+          "sourceLink": "https://www.teacherjobs.com",
+          "connections": 15
+        },
+        {
+          "id": 21,
+          "name": "Nurse",
+          "type": "job",
+          "industry": "Health & Wellness",
+          "salary": "$60k-$80k",
+          "workMode": "On-site",
+          "sourceLink": "https://www.healthjobs.com",
+          "connections": 15
+        },
+        {
+          "id": 22,
+          "name": "Physical Therapist",
+          "type": "job",
+          "industry": "Health & Wellness",
+          "salary": "$80k-$100k",
+          "workMode": "On-site",
+          "sourceLink": "https://www.healthjobs.com",
+          "connections": 15
+        },
+        {
+          "id": 23,
+          "name": "Counselor",
+          "type": "job",
+          "industry": "Health & Wellness",
+          "salary": "$60k-$80k",
+          "workMode": "Hybrid",
+          "sourceLink": "https://www.indeed.com",
+          "connections": 15
+        },
+        {
+          "id": 24,
+          "name": "Non-profit Coordinator",
+          "type": "job",
+          "industry": "Public Services",
+          "salary": "$40k-$60k",
+          "workMode": "Hybrid",
+          "sourceLink": "https://www.idealist.org",
+          "connections": 15
+        },
+        {
+          "id": 25,
+          "name": "Environmental Scientist",
+          "type": "job",
+          "industry": "Environmental",
+          "salary": "$80k-$100k",
+          "workMode": "Hybrid",
+          "sourceLink": "https://www.environmentaljobs.com",
+          "connections": 15
+        },
+        {
+          "id": 26,
+          "name": "Urban Planner",
+          "type": "job",
+          "industry": "Public Services",
+          "salary": "$60k-$80k",
+          "workMode": "On-site",
+          "sourceLink": "https://www.governmentjobs.com",
+          "connections": 15
+        },
+        {
+          "id": 27,
+          "name": "Librarian",
+          "type": "job",
+          "industry": "Education",
+          "salary": "$40k-$60k",
+          "workMode": "On-site",
+          "sourceLink": "https://www.libjobs.com",
+          "connections": 15
+        },
+        {
+          "id": 28,
+          "name": "Museum Curator",
+          "type": "job",
+          "industry": "Creative Arts",
+          "salary": "$60k-$80k",
+          "workMode": "On-site",
+          "sourceLink": "https://www.museumjobs.com",
+          "connections": 15
+        },
+        {
+          "id": 29,
+          "name": "Journalist",
+          "type": "job",
+          "industry": "Creative Arts",
+          "salary": "$60k-$80k",
+          "workMode": "Hybrid",
+          "sourceLink": "https://www.mediabistro.com",
+          "connections": 15
+        },
+        {
+          "id": 30,
+          "name": "Event Planner",
+          "type": "job",
+          "industry": "Creative Arts",
+          "salary": "$60k-$80k",
+          "workMode": "Hybrid",
+          "sourceLink": "https://www.indeed.com",
+          "connections": 15
+        },
+        {
+          "id": 31,
+          "name": "Chef",
+          "type": "job",
+          "industry": "Creative Arts",
+          "salary": "$60k-$80k",
+          "workMode": "On-site",
+          "sourceLink": "https://www.culinaryagents.com",
+          "connections": 15
+        },
+        {
+          "id": 32,
+          "name": "Photographer",
+          "type": "job",
+          "industry": "Creative Arts",
+          "salary": "$60k-$80k",
+          "workMode": "Remote",
+          "sourceLink": "https://www.upwork.com",
+          "connections": 15
+        },
+        {
+          "id": 33,
+          "name": "Interior Designer",
+          "type": "job",
+          "industry": "Creative Arts",
+          "salary": "$80k-$100k",
+          "workMode": "Hybrid",
+          "sourceLink": "https://www.creativehotlist.com",
+          "connections": 15
+        },
+        {
+          "id": 34,
+          "name": "Fashion Designer",
+          "type": "job",
+          "industry": "Creative Arts",
+          "salary": "$80k-$100k",
+          "workMode": "On-site",
+          "sourceLink": "https://www.fashionjobs.com",
+          "connections": 15
+        },
+        {
+          "id": 35,
+          "name": "Psychologist",
+          "type": "job",
+          "industry": "Health & Wellness",
+          "salary": "$100k-$120k",
+          "workMode": "Hybrid",
+          "sourceLink": "https://www.psychjobs.com",
+          "connections": 15
+        },
+        {
+          "id": 36,
+          "name": "Personal Trainer",
+          "type": "job",
+          "industry": "Health & Wellness",
+          "salary": "$40k-$60k",
+          "workMode": "On-site",
+          "sourceLink": "https://www.indeed.com",
+          "connections": 15
+        },
+        {
+          "id": 37,
+          "name": "Yoga Instructor",
+          "type": "job",
+          "industry": "Health & Wellness",
+          "salary": "$40k-$60k",
+          "workMode": "On-site",
+          "sourceLink": "https://www.mindbodyonline.com",
+          "connections": 15
+        },
+        {
+          "id": 38,
+          "name": "Park Ranger",
+          "type": "job",
+          "industry": "Environmental",
+          "salary": "$40k-$60k",
+          "workMode": "On-site",
+          "sourceLink": "https://www.usajobs.gov",
+          "connections": 15
+        },
+        {
+          "id": 39,
+          "name": "Conservation Scientist",
+          "type": "job",
+          "industry": "Environmental",
+          "salary": "$60k-$80k",
+          "workMode": "On-site",
+          "sourceLink": "https://www.conservation-careers.com",
+          "connections": 15
+        },
+        {
+          "id": 40,
+          "name": "Sustainability Consultant",
+          "type": "job",
+          "industry": "Environmental",
+          "salary": "$80k-$100k",
+          "workMode": "Hybrid",
+          "sourceLink": "https://www.linkedin.com/jobs",
+          "connections": 15
+        },
+        {
+          "id": 41,
+          "name": "Community Organizer",
+          "type": "job",
+          "industry": "Public Services",
+          "salary": "$40k-$60k",
+          "workMode": "Hybrid",
+          "sourceLink": "https://www.idealist.org",
+          "connections": 15
+        },
+        {
+          "id": 42,
+          "name": "Social Worker",
+          "type": "job",
+          "industry": "Public Services",
+          "salary": "$40k-$60k",
+          "workMode": "Hybrid",
+          "sourceLink": "https://www.socialservice.com",
+          "connections": 15
+        },
+        {
+          "id": 43,
+          "name": "Policy Analyst",
+          "type": "job",
+          "industry": "Public Services",
+          "salary": "$80k-$100k",
+          "workMode": "On-site",
+          "sourceLink": "https://www.governmentjobs.com",
+          "connections": 15
+        },
+        {
+          "id": 44,
+          "name": "Career Counselor",
+          "type": "job",
+          "industry": "Education",
+          "salary": "$60k-$80k",
+          "workMode": "Hybrid",
+          "sourceLink": "https://www.higheredjobs.com",
+          "connections": 15
+        },
+        {
+          "id": 45,
+          "name": "College Professor",
+          "type": "job",
+          "industry": "Education",
+          "salary": "$80k-$100k",
+          "workMode": "On-site",
+          "sourceLink": "https://www.higheredjobs.com",
+          "connections": 15
+        },
+        {
+          "id": 46,
+          "name": "Academic Researcher",
+          "type": "job",
+          "industry": "Education",
+          "salary": "$60k-$80k",
+          "workMode": "On-site",
+          "sourceLink": "https://www.higheredjobs.com",
+          "connections": 15
+        },
+        {
+          "id": 47,
+          "name": "Curriculum Developer",
+          "type": "job",
+          "industry": "Education",
+          "salary": "$60k-$80k",
+          "workMode": "Remote",
+          "sourceLink": "https://www.edjoin.org",
+          "connections": 15
+        },
+        {
+          "id": 48,
+          "name": "Online Tutor",
+          "type": "job",
+          "industry": "Education",
+          "salary": "$40k-$60k",
+          "workMode": "Remote",
+          "sourceLink": "https://www.tutor.com",
+          "connections": 15
+        },
+        {
+          "id": 49,
+          "name": "Educational Administrator",
+          "type": "job",
+          "industry": "Education",
+          "salary": "$80k-$100k",
+          "workMode": "On-site",
+          "sourceLink": "https://www.edjoin.org",
+          "connections": 15
+        },
+        {
+          "id": 50,
+          "name": "Leadership",
+          "type": "strength",
+          "connections": 23
+        },
+        {
+          "id": 51,
+          "name": "Teamwork",
+          "type": "strength",
+          "connections": 22
+        },
+        {
+          "id": 52,
+          "name": "Adaptability",
+          "type": "strength",
+          "connections": 25
+        },
+        {
+          "id": 53,
+          "name": "Empathy",
+          "type": "strength",
+          "connections": 31
+        },
+        {
+          "id": 54,
+          "name": "Problem Solving",
+          "type": "strength",
+          "connections": 25
+        },
+        {
+          "id": 55,
+          "name": "Analytical Thinking",
+          "type": "strength",
+          "connections": 26
+        },
+        {
+          "id": 56,
+          "name": "Communication",
+          "type": "strength",
+          "connections": 18
+        },
+        {
+          "id": 57,
+          "name": "Attention to Detail",
+          "type": "strength",
+          "connections": 24
+        },
+        {
+          "id": 58,
+          "name": "Organization",
+          "type": "strength",
+          "connections": 22
+        },
+        {
+          "id": 59,
+          "name": "Creativity",
+          "type": "strength",
+          "connections": 18
+        },
+        {
+          "id": 60,
+          "name": "Cooking",
+          "type": "interest",
+          "connections": 26
+        },
+        {
+          "id": 61,
+          "name": "Volunteering",
+          "type": "interest",
+          "connections": 23
+        },
+        {
+          "id": 62,
+          "name": "Hiking",
+          "type": "interest",
+          "connections": 21
+        },
+        {
+          "id": 63,
+          "name": "Reading",
+          "type": "interest",
+          "connections": 29
+        },
+        {
+          "id": 64,
+          "name": "Gardening",
+          "type": "interest",
+          "connections": 24
+        },
+        {
+          "id": 65,
+          "name": "Gaming",
+          "type": "interest",
+          "connections": 31
+        },
+        {
+          "id": 66,
+          "name": "Drawing",
+          "type": "interest",
+          "connections": 27
+        },
+        {
+          "id": 67,
+          "name": "Traveling",
+          "type": "interest",
+          "connections": 17
+        },
+        {
+          "id": 68,
+          "name": "Writing",
+          "type": "interest",
+          "connections": 26
+        },
+        {
+          "id": 69,
+          "name": "Photography",
+          "type": "interest",
+          "connections": 20
+        },
+        {
+          "id": 70,
+          "name": "MFA in Creative Writing",
+          "type": "education",
+          "connections": 19
+        },
+        {
+          "id": 71,
+          "name": "Ph.D. in Biology",
+          "type": "education",
+          "connections": 19
+        },
+        {
+          "id": 72,
+          "name": "Certificate in Project Management",
+          "type": "education",
+          "connections": 21
+        },
+        {
+          "id": 73,
+          "name": "MBA",
+          "type": "education",
+          "connections": 24
+        },
+        {
+          "id": 74,
+          "name": "Diploma in Graphic Design",
+          "type": "education",
+          "connections": 18
+        },
+        {
+          "id": 75,
+          "name": "M.S. in Data Science",
+          "type": "education",
+          "connections": 24
+        },
+        {
+          "id": 76,
+          "name": "B.A. in Psychology",
+          "type": "education",
+          "connections": 30
+        },
+        {
+          "id": 77,
+          "name": "B.S. in Computer Science",
+          "type": "education",
+          "connections": 17
+        },
+        {
+          "id": 78,
+          "name": "B.S. in Education",
+          "type": "education",
+          "connections": 31
+        },
+        {
+          "id": 79,
+          "name": "B.A. in English",
+          "type": "education",
+          "connections": 31
         }
-        
-        // Get container dimensions
-        const width = visualization.clientWidth;
-        const height = visualization.clientHeight;
-        
-        // Create simulation
-        simulation = d3.forceSimulation(graphData.nodes)
-          .force('link', d3.forceLink(graphData.links)
-            .id(d => d.id)
-            .distance(100))
-          .force('charge', d3.forceManyBody().strength(-200))
-          .force('center', d3.forceCenter(width / 2, height / 2))
-          .force('collision', d3.forceCollide().radius(d => getNodeRadius(d) + 5));
-        
-        // Create container groups
-        const linksGroup = svg.append('g').attr('class', 'links');
-        const nodesGroup = svg.append('g').attr('class', 'nodes');
-        
-        // Create links
-        const link = linksGroup
-          .selectAll('line')
-          .data(graphData.links)
-          .enter()
-          .append('line')
-          .attr('class', d => `link link-${d.type}`)
-          .attr('stroke-width', 1.5);
-        
-        // Create node groups
-        const node = nodesGroup
-          .selectAll('.node')
-          .data(graphData.nodes)
-          .enter()
-          .append('g')
-          .attr('class', d => `node node-${d.type} ${selectedJob && d.id === selectedJob.id ? 'selected' : ''}`)
-          .on('click', (event, d) => {
-            if (d.type === 'job') {
-              selectedJob = d;
-              showJobDetails(d);
-              
-              // Update selected state
-              svg.selectAll('.node').classed('selected', n => n.id === d.id);
-            }
-          })
-          .call(d3.drag()
-            .on('start', dragstarted)
-            .on('drag', dragged)
-            .on('end', dragended));
-        
-        // Add circles to nodes
-        node.append('circle')
-          .attr('r', getNodeRadius);
-        
-        // Add text labels
-        node.append('text')
-          .attr('dx', d => d.type === 'job' ? -3 : 12)
-          .attr('dy', '.35em')
-          .attr('font-size', d => d.type === 'job' ? '10px' : '8px')
-          .text(d => truncateLabel(d.name))
-          .attr('fill', '#333');
-        
-        // Update simulation on each tick
-        simulation.on('tick', () => {
-          link
-            .attr('x1', d => Math.max(0, Math.min(width, d.source.x)))
-            .attr('y1', d => Math.max(0, Math.min(height, d.source.y)))
-            .attr('x2', d => Math.max(0, Math.min(width, d.target.x)))
-            .attr('y2', d => Math.max(0, Math.min(height, d.target.y)));
-          
-          node
-            .attr('transform', d => {
-              const x = Math.max(20, Math.min(width - 20, d.x));
-              const y = Math.max(20, Math.min(height - 20, d.y));
-              return `translate(${x}, ${y})`;
-            });
-        });
-      }
-      
-      // Show job details panel with selected job info
-      function showJobDetails(job) {
-        jobDetailsContent.innerHTML = `
-          <h3 class="font-medium text-blue-600 mb-2">${job.name}</h3>
-          
-          <div class="space-y-2 text-sm">
-            <div>
-              <span class="font-medium">Industry:</span> ${job.industry}
-            </div>
-            <div>
-              <span class="font-medium">Salary Range:</span> ${job.salary}
-            </div>
-            <div>
-              <span class="font-medium">Work Mode:</span> ${job.workMode}
-            </div>
-            <div>
-              <span class="font-medium">Connections:</span> ${job.connections}
-            </div>
-            
-            ${job.sourceLink && job.sourceLink !== '#' ? `
-              <div class="pt-2">
-                <a 
-                  href="${job.sourceLink}" 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  class="text-blue-600 hover:underline inline-block mt-2"
-                >
-                  View Job Listing
-                </a>
-              </div>
-            ` : ''}
-          </div>
-        `;
-        
-        detailsPanel.classList.add('active');
-      }
-      
-      // Close the details panel
-      function closeDetailsPanel() {
-        detailsPanel.classList.remove('active');
-        selectedJob = null;
-        svg.selectAll('.node').classed('selected', false);
-      }
-      
-      // Helper functions
-      function getNodeRadius(d) {
-        const baseSize = d.type === 'job' ? 8 : 6;
-        const connectionBonus = Math.sqrt(d.connections || 1) * 1.5;
-        return baseSize + connectionBonus;
-      }
-      
-      function truncateLabel(text) {
-        return text.length > 20 ? text.substring(0, 17) + '...' : text;
-      }
-      
-      // Drag functions
-      function dragstarted(event, d) {
-        if (!event.active) simulation.alphaTarget(0.3).restart();
-        d.fx = d.x;
-        d.fy = d.y;
-      }
-      
-      function dragged(event, d) {
-        d.fx = event.x;
-        d.fy = event.y;
-      }
-      
-      function dragended(event, d) {
-        if (!event.active) simulation.alphaTarget(0);
-        d.fx = null;
-        d.fy = null;
-      }
-    });
-  </script>
-</body>
-</html>
