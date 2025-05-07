@@ -455,11 +455,7 @@
                                         <p><strong>Salary Range:</strong> {selectedJobDetails["Salary Range"]}</p>
                                         <p><strong>Work Mode:</strong> {selectedJobDetails["Work Mode"]}</p>
                                         <p><strong>Strength:</strong> {selectedJobDetails["Strength"]}</p>
-                                         <ul className="list-disc pl-5">
-                                                {selectedJob.strengths.map((strength, index) => (
-                                                  <li key={index}>{strength}</li>
-                                                ))}
-                                              </ul>
+                                         
                                         <p className="mt-2">
                                             <a 
                                                 href={selectedJobDetails["Source Link"]} 
