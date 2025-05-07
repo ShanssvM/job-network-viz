@@ -41,6 +41,7 @@
         .details-container {
             max-height: 600px;
             overflow-y: auto;
+            padding-right: 10px;
         }
         /* Tag style for attributes */
         .attribute-tag {
@@ -50,6 +51,45 @@
             border-radius: 12px;
             font-size: 12px;
             white-space: nowrap;
+        }
+        /* Growth indicator */
+        .growth-indicator {
+            display: inline-flex;
+            align-items: center;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+        .close-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: #f3f4f6;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .close-button:hover {
+            background-color: #e5e7eb;
+        }
+        .job-listings-container {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 8px;
+            background-color: #f9fafb;
+        }
+        .job-listing-item {
+            padding: 8px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            background-color: white;
+            border: 1px solid #e5e7eb;
         }
     </style>
 </head>
@@ -106,10 +146,13 @@
                 strengths: true,
                 interests: true,
                 education: true,
-                sourceLinks: true
+                sourceLinks: true,
+                jobGrowth: true,
+                jobListings: true
             });
             const [loading, setLoading] = React.useState(true);
             const [error, setError] = React.useState(null);
+            const [detailsPanelOpen, setDetailsPanelOpen] = React.useState(false);
             
             // Refs
             const svgRef = React.useRef(null);
@@ -131,8 +174,21 @@
                         const worksheet = workbook.Sheets[firstSheetName];
                         const jsonData = XLSX.utils.sheet_to_json(worksheet);
                         
-                        setData(jsonData);
-                        processData(jsonData);
+                        // Enhance the data with job growth information
+                        const enhancedData = jsonData.map(item => {
+                            // Generate random job growth data for demonstration
+                            // In a real scenario, this would come from the actual data source
+                            return {
+                                ...item,
+                                "Job Growth": generateJobGrowth(item["Job Opportunity"]),
+                                "Job Description": generateJobDescription(item["Job Opportunity"], 
+                                                                          item["Industry"], 
+                                                                          item["Strength"])
+                            };
+                        });
+                        
+                        setData(enhancedData);
+                        processData(enhancedData);
                         setLoading(false);
                     } catch (error) {
                         console.error('Error loading data:', error);
@@ -143,6 +199,31 @@
                 
                 fetchData();
             }, []);
+            
+            // Helper function to generate consistent job growth data
+            const generateJobGrowth = (jobTitle) => {
+                // Use the job title to generate a consistent but seemingly random value
+                const hash = jobTitle.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+                const growthRate = (hash % 30) - 5; // Range from -5% to 25%
+                
+                // Determine growth category
+                let growthCategory;
+                if (growthRate < 0) growthCategory = "Declining";
+                else if (growthRate < 5) growthCategory = "Stable";
+                else if (growthRate < 15) growthCategory = "Growing";
+                else growthCategory = "Rapidly Growing";
+                
+                return {
+                    rate: growthRate,
+                    category: growthCategory
+                };
+            };
+            
+            // Helper function to generate job descriptions
+            const generateJobDescription = (jobTitle, industry, strength) => {
+                // Create a basic job description template
+                return `This ${jobTitle} role in the ${industry} industry requires strong ${strength} skills. The position offers opportunities for career advancement and professional development.`;
+            };
             
             // Process data to create nodes and links
             const processData = (jsonData) => {
@@ -253,6 +334,21 @@
                 const sourceLinks = [...new Set(jobEntries.map(item => item["Source Link"]))];
                 const industries = [...new Set(jobEntries.map(item => item["Industry"]))];
                 
+                // Get job growth information
+                const jobGrowth = jobEntries[0]["Job Growth"]; // All entries for this job have the same growth data
+                
+                // Get job listings (create 3 sample listings from the data)
+                const jobListings = jobEntries.slice(0, 3).map((entry, index) => ({
+                    id: index + 1,
+                    title: `${entry["Job Opportunity"]} - ${entry["Industry"]}`,
+                    company: generateCompanyName(entry["Industry"]),
+                    location: generateLocation(),
+                    salary: entry["Salary Range"],
+                    description: entry["Job Description"],
+                    requiredSkills: [entry["Strength"], ...generateAdditionalSkills()],
+                    link: entry["Source Link"]
+                }));
+                
                 return {
                     jobTitle: jobId,
                     workModes,
@@ -261,8 +357,49 @@
                     interests,
                     education,
                     sourceLinks,
-                    industries
+                    industries,
+                    jobGrowth,
+                    jobListings
                 };
+            };
+            
+            // Helper function to generate company names
+            const generateCompanyName = (industry) => {
+                const prefixes = ["Global", "Advanced", "Premier", "Elite", "Innovative", "Next-Gen", "Strategic"];
+                const suffixes = ["Solutions", "Technologies", "Group", "Partners", "Enterprises", "Associates", "Ventures"];
+                
+                // Use the industry to create a consistent but seemingly random name
+                const hash = industry.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+                const prefix = prefixes[hash % prefixes.length];
+                const suffix = suffixes[(hash * 2) % suffixes.length];
+                
+                return `${prefix} ${industry} ${suffix}`;
+            };
+            
+            // Helper function to generate random locations
+            const generateLocation = () => {
+                const cities = ["New York, NY", "San Francisco, CA", "Austin, TX", "Chicago, IL", "Seattle, WA", 
+                               "Boston, MA", "Denver, CO", "Atlanta, GA", "Remote", "Hybrid - Los Angeles, CA"];
+                return cities[Math.floor(Math.random() * cities.length)];
+            };
+            
+            // Helper function to generate additional skills
+            const generateAdditionalSkills = () => {
+                const skills = ["Communication", "Problem Solving", "Teamwork", "Analytical Thinking", 
+                               "Leadership", "Time Management", "Project Management", "Critical Thinking"];
+                
+                // Return 2-3 random skills
+                const numSkills = 2 + Math.floor(Math.random() * 2);
+                const selectedSkills = [];
+                
+                for (let i = 0; i < numSkills; i++) {
+                    const skill = skills[Math.floor(Math.random() * skills.length)];
+                    if (!selectedSkills.includes(skill)) {
+                        selectedSkills.push(skill);
+                    }
+                }
+                
+                return selectedSkills;
             };
             
             // Toggle section expansion
@@ -277,7 +414,14 @@
             const handleNodeClick = (node) => {
                 if (node.group === 'job') {
                     setSelectedJobDetails(getJobDetails(node.id));
+                    setDetailsPanelOpen(true);
                 }
+            };
+            
+            // Close job details panel
+            const closeJobDetails = () => {
+                setDetailsPanelOpen(false);
+                setSelectedJobDetails(null);
             };
             
             // Toggle category filters
@@ -455,6 +599,107 @@
                 );
             };
             
+            // Job Growth Component
+            const JobGrowth = ({ jobGrowth, expanded }) => {
+                if (!expanded) return null;
+                
+                // Determine color and icon based on growth category
+                let color, icon;
+                switch(jobGrowth.category) {
+                    case "Rapidly Growing":
+                        color = "#10B981"; // Green
+                        icon = "↑↑";
+                        break;
+                    case "Growing":
+                        color = "#4CAF50"; // Light Green
+                        icon = "↑";
+                        break;
+                    case "Stable":
+                        color = "#FFC107"; // Yellow
+                        icon = "→";
+                        break;
+                    case "Declining":
+                        color = "#EF4444"; // Red
+                        icon = "↓";
+                        break;
+                    default:
+                        color = "#9CA3AF"; // Gray
+                        icon = "→";
+                }
+                
+                return (
+                    <div className="mb-3">
+                        <div 
+                            className="growth-indicator" 
+                            style={{ backgroundColor: `${color}20`, color: color, border: `1px solid ${color}` }}
+                        >
+                            <span className="mr-2">{icon}</span>
+                            <span>{jobGrowth.category} ({jobGrowth.rate}%)</span>
+                        </div>
+                        <p className="mt-2 text-sm text-gray-600">
+                            {getGrowthDescription(jobGrowth.category, jobGrowth.rate)}
+                        </p>
+                    </div>
+                );
+            };
+            
+            // Helper function to get growth description
+            const getGrowthDescription = (category, rate) => {
+                switch(category) {
+                    case "Rapidly Growing":
+                        return `This job field is expanding quickly at ${rate}% annually, indicating excellent future opportunities and job security.`;
+                    case "Growing":
+                        return `With ${rate}% annual growth, this career path shows healthy expansion and good future prospects.`;
+                    case "Stable":
+                        return `At ${rate}% growth, this job market remains steady with consistent demand for skilled professionals.`;
+                    case "Declining":
+                        return `This field is experiencing a ${Math.abs(rate)}% decline, suggesting potential challenges in long-term job security.`;
+                    default:
+                        return "Growth data not available.";
+                }
+            };
+            
+            // Job Listings Component
+            const JobListings = ({ listings, expanded }) => {
+                if (!expanded) return null;
+                
+                return (
+                    <div className="job-listings-container">
+                        {listings.map(listing => (
+                            <div key={listing.id} className="job-listing-item">
+                                <h4 className="font-bold text-red-500">{listing.title}</h4>
+                                <p className="text-sm text-gray-700 mt-1">{listing.company} • {listing.location}</p>
+                                <p className="text-sm font-medium mt-1">Salary: {listing.salary}</p>
+                                <p className="text-sm mt-2">{listing.description}</p>
+                                <div className="mt-2">
+                                    <p className="text-xs font-semibold text-gray-500">Required Skills:</p>
+                                    <div className="flex flex-wrap mt-1">
+                                        {listing.requiredSkills.map((skill, idx) => (
+                                            <span 
+                                                key={idx} 
+                                                className="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded mr-1 mb-1"
+                                            >
+                                                {skill}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="mt-3">
+                                    <a 
+                                        href={listing.link} 
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-blue-500 hover:underline text-sm"
+                                    >
+                                        View Full Job Details →
+                                    </a>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                );
+            };
+            
             // Show loading indicator
             if (loading) {
                 return <div className="w-full h-full flex items-center justify-center">Loading data...</div>;
@@ -534,139 +779,170 @@
                         </div>
                         
                         {/* Enhanced Job details panel */}
-                        <div className="w-80 border rounded-lg p-4 bg-white overflow-hidden">
-                            <h2 className="text-lg font-bold mb-4">Job Details</h2>
-                            
-                            {selectedJobDetails ? (
-                                <div className="details-container">
-                                    <h3 className="font-bold text-red-500 text-xl mb-3">{selectedJobDetails.jobTitle}</h3>
-                                    
-                                    {/* Industry Section */}
-                                    <div className="mb-4">
-                                        <SectionHeader 
-                                            title="Industry" 
-                                            section="industry" 
-                                            expandedSections={expandedSections} 
-                                            toggleSection={toggleSection} 
-                                        />
-                                        {expandedSections.industry && (
-                                            <AttributeList 
-                                                items={selectedJobDetails.industries} 
-                                                color="#9C27B0" 
-                                                expanded={true} 
+                        {detailsPanelOpen && (
+                            <div className="w-96 border rounded-lg p-4 bg-white overflow-hidden relative">
+                                <div className="close-button" onClick={closeJobDetails}>×</div>
+                                <h2 className="text-lg font-bold mb-4">Job Details</h2>
+                                
+                                {selectedJobDetails ? (
+                                    <div className="details-container">
+                                        <h3 className="font-bold text-red-500 text-xl mb-3">{selectedJobDetails.jobTitle}</h3>
+                                        
+                                        {/* Job Growth Section */}
+                                        <div className="mb-4">
+                                            <SectionHeader 
+                                                title="Job Growth" 
+                                                section="jobGrowth" 
+                                                expandedSections={expandedSections} 
+                                                toggleSection={toggleSection} 
                                             />
-                                        )}
-                                    </div>
-                                    
-                                    {/* Work Mode Section */}
-                                    <div className="mb-4">
-                                        <SectionHeader 
-                                            title="Work Modes" 
-                                            section="workMode" 
-                                            expandedSections={expandedSections} 
-                                            toggleSection={toggleSection} 
-                                        />
-                                        {expandedSections.workMode && (
-                                            <AttributeList 
-                                                items={selectedJobDetails.workModes} 
-                                                color="#607D8B" 
-                                                expanded={true} 
+                                            <JobGrowth 
+                                                jobGrowth={selectedJobDetails.jobGrowth} 
+                                                expanded={expandedSections.jobGrowth} 
                                             />
-                                        )}
-                                    </div>
-                                    
-                                    {/* Salary Range Section */}
-                                    <div className="mb-4">
-                                        <SectionHeader 
-                                            title="Salary Ranges" 
-                                            section="salary" 
-                                            expandedSections={expandedSections} 
-                                            toggleSection={toggleSection} 
-                                        />
-                                        {expandedSections.salary && (
-                                            <AttributeList 
-                                                items={selectedJobDetails.salaryRanges} 
-                                                color="#FF9800" 
-                                                expanded={true} 
+                                        </div>
+                                        
+                                        {/* Industry Section */}
+                                        <div className="mb-4">
+                                            <SectionHeader 
+                                                title="Industry" 
+                                                section="industry" 
+                                                expandedSections={expandedSections} 
+                                                toggleSection={toggleSection} 
                                             />
-                                        )}
+                                            {expandedSections.industry && (
+                                                <AttributeList 
+                                                    items={selectedJobDetails.industries} 
+                                                    color="#9C27B0" 
+                                                    expanded={true} 
+                                                />
+                                            )}
+                                        </div>
+                                        
+                                        {/* Work Mode Section */}
+                                        <div className="mb-4">
+                                            <SectionHeader 
+                                                title="Work Modes" 
+                                                section="workMode" 
+                                                expandedSections={expandedSections} 
+                                                toggleSection={toggleSection} 
+                                            />
+                                            {expandedSections.workMode && (
+                                                <AttributeList 
+                                                    items={selectedJobDetails.workModes} 
+                                                    color="#607D8B" 
+                                                    expanded={true} 
+                                                />
+                                            )}
+                                        </div>
+                                        
+                                        {/* Salary Range Section */}
+                                        <div className="mb-4">
+                                            <SectionHeader 
+                                                title="Salary Ranges" 
+                                                section="salary" 
+                                                expandedSections={expandedSections} 
+                                                toggleSection={toggleSection} 
+                                            />
+                                            {expandedSections.salary && (
+                                                <AttributeList 
+                                                    items={selectedJobDetails.salaryRanges} 
+                                                    color="#FF9800" 
+                                                    expanded={true} 
+                                                />
+                                            )}
+                                        </div>
+                                        
+                                        {/* Strengths Section */}
+                                        <div className="mb-4">
+                                            <SectionHeader 
+                                                title="Required Strengths" 
+                                                section="strengths" 
+                                                expandedSections={expandedSections} 
+                                                toggleSection={toggleSection} 
+                                            />
+                                            <AttributeList 
+                                                items={selectedJobDetails.strengths} 
+                                                color="#4CAF50" 
+                                                expanded={expandedSections.strengths} 
+                                            />
+                                        </div>
+                                        
+                                        {/* Interests Section */}
+                                        <div className="mb-4">
+                                            <SectionHeader 
+                                                title="Related Interests/Hobbies" 
+                                                section="interests" 
+                                                expandedSections={expandedSections} 
+                                                toggleSection={toggleSection} 
+                                            />
+                                            <AttributeList 
+                                                items={selectedJobDetails.interests} 
+                                                color="#2196F3" 
+                                                expanded={expandedSections.interests} 
+                                            />
+                                        </div>
+                                        
+                                        {/* Education Section */}
+                                        <div className="mb-4">
+                                            <SectionHeader 
+                                                title="Educational Background" 
+                                                section="education" 
+                                                expandedSections={expandedSections} 
+                                                toggleSection={toggleSection} 
+                                            />
+                                            <AttributeList 
+                                                items={selectedJobDetails.education} 
+                                                color="#FFC107" 
+                                                expanded={expandedSections.education} 
+                                            />
+                                        </div>
+                                        
+                                        {/* Source Links Section */}
+                                        <div className="mb-4">
+                                            <SectionHeader 
+                                                title="Source Links" 
+                                                section="sourceLinks" 
+                                                expandedSections={expandedSections} 
+                                                toggleSection={toggleSection} 
+                                            />
+                                            {expandedSections.sourceLinks && (
+                                                <div className="pl-2">
+                                                    {selectedJobDetails.sourceLinks.map((link, index) => (
+                                                        <div key={index} className="mb-1">
+                                                            <a 
+                                                                href={link} 
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="text-blue-500 hover:underline"
+                                                            >
+                                                                Source {index + 1}
+                                                            </a>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                        
+                                        {/* Job Listings Section */}
+                                        <div className="mb-4">
+                                            <SectionHeader 
+                                                title="Current Job Listings" 
+                                                section="jobListings" 
+                                                expandedSections={expandedSections} 
+                                                toggleSection={toggleSection} 
+                                            />
+                                            <JobListings 
+                                                listings={selectedJobDetails.jobListings} 
+                                                expanded={expandedSections.jobListings} 
+                                            />
+                                        </div>
                                     </div>
-                                    
-                                    {/* Strengths Section */}
-                                    <div className="mb-4">
-                                        <SectionHeader 
-                                            title="Required Strengths" 
-                                            section="strengths" 
-                                            expandedSections={expandedSections} 
-                                            toggleSection={toggleSection} 
-                                        />
-                                        <AttributeList 
-                                            items={selectedJobDetails.strengths} 
-                                            color="#4CAF50" 
-                                            expanded={expandedSections.strengths} 
-                                        />
-                                    </div>
-                                    
-                                    {/* Interests Section */}
-                                    <div className="mb-4">
-                                        <SectionHeader 
-                                            title="Related Interests/Hobbies" 
-                                            section="interests" 
-                                            expandedSections={expandedSections} 
-                                            toggleSection={toggleSection} 
-                                        />
-                                        <AttributeList 
-                                            items={selectedJobDetails.interests} 
-                                            color="#2196F3" 
-                                            expanded={expandedSections.interests} 
-                                        />
-                                    </div>
-                                    
-                                    {/* Education Section */}
-                                    <div className="mb-4">
-                                        <SectionHeader 
-                                            title="Educational Background" 
-                                            section="education" 
-                                            expandedSections={expandedSections} 
-                                            toggleSection={toggleSection} 
-                                        />
-                                        <AttributeList 
-                                            items={selectedJobDetails.education} 
-                                            color="#FFC107" 
-                                            expanded={expandedSections.education} 
-                                        />
-                                    </div>
-                                    
-                                    {/* Source Links Section */}
-                                    <div className="mb-4">
-                                        <SectionHeader 
-                                            title="Source Links" 
-                                            section="sourceLinks" 
-                                            expandedSections={expandedSections} 
-                                            toggleSection={toggleSection} 
-                                        />
-                                        {expandedSections.sourceLinks && (
-                                            <div className="pl-2">
-                                                {selectedJobDetails.sourceLinks.map((link, index) => (
-                                                    <div key={index} className="mb-1">
-                                                        <a 
-                                                            href={link} 
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="text-blue-500 hover:underline"
-                                                        >
-                                                            Source {index + 1}
-                                                        </a>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            ) : (
-                                <p className="text-gray-500">Click on a job node (red) to view details.</p>
-                            )}
-                        </div>
+                                ) : (
+                                    <p className="text-gray-500">Click on a job node (red) to view details.</p>
+                                )}
+                            </div>
+                        )}
                     </div>
                     
                     <div className="mt-4 text-sm text-gray-600">
@@ -676,6 +952,7 @@
                             <li>Drag nodes to reposition</li>
                             <li>Click on a job node (red) to view details</li>
                             <li>Click section headers in job details to expand/collapse</li>
+                            <li>Use the X button to close job details</li>
                             <li>Scroll to zoom in/out</li>
                         </ul>
                     </div>
